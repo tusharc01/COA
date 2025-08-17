@@ -100,7 +100,7 @@ The Operand Fetch unit is crucial as it prepares all necessary data for subseque
 The OF unit provides four primary outputs to the next stage:
 *   **Immediate values**: If the instruction contains an immediate operand, this is converted to its 32-bit representation.
 *   **Branch target**: For branch instructions, the potential next PC address is calculated (`PC + offset`).
-*   **Operand 1 (op1)**: Typically the value of the first source register (RS1). However, for a `return` instruction, a multiplexer selects the content of the **Return Address Register (RA or R15)** to be output as op1.
+*   **Operand 1 (op1)**: Typically the value of the first source register (RS1). However, for a `return` instruction, a multiplexer selects the content of the **Return Address Register (RA15)** to be output as op1.
 *   **Operand 2 (op2)**: Typically the value of the second source register (RS2). Uniquely for `store` instructions, the **RD (destination register) field** of the instruction is read to determine *which register's value needs to be stored*, and that value is output as op2.
 
 ### 2. Execution (EX) Unit
