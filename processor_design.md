@@ -79,8 +79,8 @@ A key design choice for performance is to **perform operations in parallel** wit
 #### a. Register File Read Module (within OF)
 This module handles reading register operands:
 *   It has **two read ports** for reading source registers (RS1, RS2).
-*   **Special handling for `return` instruction:** If the instruction is `return`, instead of a source register, the return address register (RA, R15) is read, and its content becomes `operand 1`. A multiplexer selects between RS1 and RA based on a control signal.
-*   **Special handling for `store` instruction:** For a `store` instruction, the value to be stored in memory is typically in the destination register (RD field in the instruction format). Since `store` doesn't have a true destination register, this RD field is used to specify the source register whose value needs to be stored. This value is read and outputted as `operand 2`. Another multiplexer selects between RS2 and this special RD read.
+*   **Special handling for `return` instruction:** If the instruction is `return`, instead of a source register, the return address register RA(15) is read, and its content becomes `operand 1`. A multiplexer (isRet) selects between RS1 and RA based on a control signal.
+*   **Special handling for `store` instruction:** For a `store` instruction, the value to be stored in memory is typically in the destination register (RD field in the instruction format). Since `store` doesn't have a true destination register, this RD field is used to specify the source register whose value needs to be stored. This value is read and outputted as `operand 2`. Another multiplexer (isSt) selects between RS2 and this special RD read.
 
 #### b. Immediate and Branch Unit (within OF)
 This unit performs parallel calculations for immediate values and branch targets:
