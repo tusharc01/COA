@@ -164,7 +164,7 @@ The Register Writeback unit is the final stage where the results of operations a
 #### b. Destination Register (Where to Write)
 The RW unit needs to determine *which* register in the register file should be updated. There are two main possibilities, selected by a multiplexer:
 *   **Destination Register (RD)**: For most arithmetic and logical operations, the result is written to the destination register specified by bits 26-23 in the instruction.
-*   **Return Address Register (RA / R15)**: If the instruction is a **`call` instruction**, the return address needs to be stored in the RA register. This address is selected for the write port.
+*   **Return Address Register (RA15)**: If the instruction is a **`call` instruction**, the return address needs to be stored in the RA register. This address is selected for the write port.
 
 #### c. Data to Write (What to Write)
 The data that needs to be written back can come from three different sources, selected by another multiplexer based on control signals:
