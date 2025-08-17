@@ -155,8 +155,8 @@ For a `store` instruction (e.g., `store r2, offset(base)`):
 
 The MA unit uses temporary registers (like `memory address register` and `memory data register`) and control signals (`load` or `store`) to manage these operations.
 
-### 4. Register Write (RW) Unit
-The Register Write unit is the final stage where the results of operations are written back into the **register file**. This stage is critical because an incorrect write can overwrite valid data, leading to errors that are difficult to recover from.
+### 4. Register Writeback (RW) Unit
+The Register Writeback unit is the final stage where the results of operations are written back into the **register file**. This stage is critical because an incorrect write can overwrite valid data, leading to errors that are difficult to recover from.
 
 #### a. Write Enable
 *   Before any write operation, a control signal called `is write back required` must be asserted. If this signal is not high, no writing will occur, ensuring data integrity.
