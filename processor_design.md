@@ -89,3 +89,113 @@ This unit performs parallel calculations for immediate values and branch targets
 *   These calculations are done **parallelly**, regardless of the instruction type, to ensure that the results are available without delay if they are eventually needed.
 
 The **overall Operand Fetch unit** combines these parts, taking the PC and instruction from the Fetch unit. The control unit receives the opcode and immediate bit to generate all necessary control signals for the multiplexers and other logic within the OF unit.
+
+---
+
+In video "[Lec 25 & 26](https://www.youtube.com/watch?v=R1b60NAgrng&list=PLL7q95_bHxC56PtT1t-21A-NmUf7yBjGs&index=15&pp=iAQB): Building upon our previous discussion about processor design, where we introduced the five stages of instruction processing and delved into the **Instruction Fetch (IF)** and **Operand Fetch (OF)** units, this response will provide a comprehensive explanation of the remaining stages: **Execution (EX)**, **Memory Access (MA)**, **Register Write (RW)**, and the **Control Unit**.
+
+### 1. Recap of Operand Fetch (OF) Unit and its Outputs
+The Operand Fetch unit is crucial as it prepares all necessary data for subsequent stages. Its primary role is to **decode the instruction** and **fetch all possible operands in parallel**, to avoid performance delays. This parallel evaluation means that even if an instruction doesn't require a particular operand type (like an immediate value or a branch target), those values are still calculated, and the unneeded results are simply discarded later.
+
+The OF unit provides four primary outputs to the next stage:
+*   **Immediate values**: If the instruction contains an immediate operand, this is converted to its 32-bit representation.
+*   **Branch target**: For branch instructions, the potential next PC address is calculated (`PC + offset`).
+*   **Operand 1 (op1)**: Typically the value of the first source register (RS1). However, for a `return` instruction, a multiplexer selects the content of the **Return Address Register (RA or R15)** to be output as op1.
+*   **Operand 2 (op2)**: Typically the value of the second source register (RS2). Uniquely for `store` instructions, the **RD (destination register) field** of the instruction is read to determine *which register's value needs to be stored*, and that value is output as op2.
+
+### 2. Execution (EX) Unit
+The Execution unit is where the primary computation for an instruction takes place. It receives the immediate values, branch target, op1, and op2 from the Operand Fetch unit as its inputs.
+
+#### a. Branch Unit
+Within the EX unit, a **branch unit** determines if a branch instruction should be taken, which is critical for updating the Program Counter (PC) in the Instruction Fetch unit.
+*   It generates the `is branch taken` signal by checking **flag status** and the instruction type.
+*   For **conditional branches** like `beq` (branch if equal), it checks `flags.e` (equal flag). For `bgt` (branch if greater than), it checks `flags.gt` (greater than flag). If both the relevant flag is set and the instruction matches (e.g., `beq` and `flags.e` is high), then the branch is taken.
+*   For **unconditional branches**, the `is branch taken` signal is directly set to high.
+*   An **OR gate** combines these conditions; if any of them are true, the `is branch taken` signal is asserted.
+
+The EX unit also calculates the **updated PC (branch PC)** for the next instruction.
+*   A multiplexer selects the next PC. If the instruction is a **`return` instruction**, the PC is updated with the value of the Return Address Register (RA), which was provided as `op1` from the OF unit.
+*   If it's **not a `return` instruction**, the **branch target address** calculated in the OF unit is used to update the PC.
+
+#### b. Arithmetic and Logic Unit (ALU)
+The ALU is the core of the EX unit, performing all arithmetic and logical operations.
+*   **Inputs (Operands A and B)**:
+    *   **Operand A**: Always comes directly from the first source operand, `op1` (a register value).
+    *   **Operand B**: This is chosen via a multiplexer. If the instruction's **immediate bit is high**, the 32-bit `immediate value` (generated in OF) is selected as Operand B. If the **immediate bit is low**, `op2` (typically a register value) is selected.
+*   **ALU Operation**: The specific operation (add, subtract, AND, OR, etc.) is determined by `ALU signals` provided by the control unit.
+*   **Output**: The ALU produces an `ALU result`.
+
+#### c. Internal Functions of the ALU
+The ALU is designed to handle a variety of operations:
+*   **Adder**: Used for `add` instructions and also for **calculating memory addresses** in load/store instructions (base register + offset).
+*   **Subtracter**: Implemented by converting the number to be subtracted into its **two's complement** and then performing addition.
+*   **Comparison**: Also performed via **subtraction**. If the result is zero, the numbers are equal; if positive, the first is greater. This outcome updates the **flags register** (e.g., `flags.e`, `flags.gt`) which are then used by the branch unit.
+*   **Multiplier**: A dedicated hardware unit performs multiplication.
+*   **Divider**: A dedicated unit that can output either the **quotient** (for division) or the **remainder** (for modulo operation).
+*   **Shift Operations**: Handles logical and arithmetic shifts (left and right).
+*   **Logical Operations**: Performs operations like AND, OR, NOT.
+*   **Move Instruction**: Also handled at the ALU level.
+
+In summary, the Execution unit combines the branch logic and the ALU to perform computations, update flags, and determine the next PC for branches.
+
+### 3. Memory Access (MA) Unit
+The Memory Access unit is dedicated to handling **load and store instructions**, interacting directly with the data memory.
+
+#### a. Load Instruction
+For a `load` instruction (e.g., `load r1, offset(base)`):
+*   **Address Calculation**: The **address** from which to load data is calculated in the ALU (base + offset) during the EX stage, and this result (`ALU result`) is passed to the MA unit.
+*   **Data Fetch**: This `ALU result` (address) is sent to the **data memory**. The data located at that address is then fetched.
+*   **Output**: The fetched data is outputted as `load result` from the memory access unit, which will be used in the next stage to write back to a register.
+
+#### b. Store Instruction
+For a `store` instruction (e.g., `store r2, offset(base)`):
+*   **Address Calculation**: Similar to load, the **memory address** where the data needs to be stored is calculated by the ALU (`ALU result`) and provided to the MA unit.
+*   **Data to Store**: The **value to be stored** comes from `op2`, which was read from the source register specified by the RD field of the `store` instruction in the Operand Fetch stage.
+*   **Process**: The `ALU result` (address) tells the data memory *where* to store, and `op2` (data) tells it *what* to store. This data is then written into the memory location. Unlike load, there is **no direct output** from the MA unit for a store instruction.
+
+The MA unit uses temporary registers (like `memory address register` and `memory data register`) and control signals (`load` or `store`) to manage these operations.
+
+### 4. Register Write (RW) Unit
+The Register Write unit is the final stage where the results of operations are written back into the **register file**. This stage is critical because an incorrect write can overwrite valid data, leading to errors that are difficult to recover from.
+
+#### a. Write Enable
+*   Before any write operation, a control signal called `is write back required` must be asserted. If this signal is not high, no writing will occur, ensuring data integrity.
+
+#### b. Destination Register (Where to Write)
+The RW unit needs to determine *which* register in the register file should be updated. There are two main possibilities, selected by a multiplexer:
+*   **Destination Register (RD)**: For most arithmetic and logical operations, the result is written to the destination register specified by bits 26-23 in the instruction.
+*   **Return Address Register (RA / R15)**: If the instruction is a **`call` instruction**, the return address needs to be stored in the RA register. This address is selected for the write port.
+
+#### c. Data to Write (What to Write)
+The data that needs to be written back can come from three different sources, selected by another multiplexer based on control signals:
+*   **ALU Result**: This is the outcome of arithmetic or logical operations performed in the EX stage.
+*   **Load Result**: This is the data fetched from memory by a `load` instruction in the MA stage.
+*   **PC + 4**: For a **`call` instruction**, the return address (the address of the instruction immediately following the `call`) is calculated as `current PC + 4`. This calculated address is the data that gets written into the Return Address Register (RA).
+
+Control signals (e.g., `is load instruction`, `is call instruction`) manage which of these three data sources is selected to be written into the chosen destination register.
+
+### 5. Control Unit
+The **Control Unit** is the "brain" of the processor, responsible for **generating all the necessary control signals** that govern the flow and operation of data throughout all five stages. It ensures that data moves correctly and operations are performed as intended.
+
+#### a. Inputs and Outputs
+*   **Inputs**: The control unit primarily takes the **5-bit opcode** and the **1-bit immediate flag** from the instruction as its inputs.
+*   **Outputs**: It generates a wide array of control signals for every part of the processor, including:
+    *   Signals for identifying instruction types (e.g., `is store`, `is load`, `is branch`, `is call`, `is return`, `is branch if equal`, `is branch if greater than`, `is immediate bit high`).
+    *   Signals for controlling the Register Write stage (e.g., `is write back required`, which specifies whether any register should be updated).
+    *   Signals to specify ALU operations (e.g., `is add`, `is compare`, `is multiply`, `is division`, `is mod`, `is shift`, `is or`, `is move`).
+
+#### b. Hardware Control Unit
+*   This is the most common and preferred method for high-performance applications.
+*   It is implemented using **combinational logic circuits** (a "hardwired" design) that directly generate the control signals based on the opcode and immediate bit inputs.
+*   The logic for generating these signals is determined by the instruction set's encoding.
+*   **Advantage**: Provides **much better performance** because the control logic is directly implemented in hardware, allowing for fast signal generation.
+
+#### c. Microprogrammed Control Unit (Alternative)
+*   This approach is less common for high-performance processors.
+*   Instead of hardwired logic, the control unit's behavior is defined by a **firmware** (a layer between software and hardware) that contains "microcode".
+*   **Concept**: A programmer can write higher-level, more complex "microprogrammed instructions" (e.g., an instruction to add three numbers, or to perform factorial, or multiply-accumulate operation) that are not directly supported by the core hardware instruction set.
+*   **Translation**: The firmware then translates these single, complex microprogrammed instructions into **multiple, simpler "micro instructions"** that the underlying hardware can execute.
+*   **Advantages**: Offers **more flexibility for programmers** to define custom or complex operations as single instructions, simplifying program writing.
+*   **Disadvantages**: Generally **slower performance** compared to hardware control units due to the added translation layer and the more generic nature of the implementation to accommodate varied instructions. It introduces overhead that reduces efficiency.
+
+The processor design discussed, encompassing these five stages (IF, OF, EX, MA, RW) and a robust control unit, lays the foundation for understanding how instructions are executed. The next step in improving processor performance, as mentioned, is **pipelining**.
