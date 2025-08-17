@@ -35,7 +35,7 @@ In essence, the IF unit uses the PC to access instruction memory, gets the instr
 
 #### b. Operand Fetch (OF) / Decode Stage
 This is described as a **pretty extensive and potentially time-consuming phase**. It involves several crucial operations:
-*   **Decode the instruction:** The upper 5 bits (32 to 27) of the 32-bit instruction are the opcode, which identifies the instruction (e.g., 21 instructions in Simple RISC require 5 bits). This involves breaking the instruction into its different fields (source registers, destination register, etc.).
+*   **Decode the instruction:** The upper 5 bits of the 32-bit instruction are the opcode, which identifies the instruction (e.g., 21 instructions in Simple RISC require 5 bits). This involves breaking the instruction into its different fields (source registers, destination register, etc.).
 *   **Fetch register operands:** If the instruction requires register operands (e.g., `add r1, r2, r3`), their values are fetched from the **register file**. Simple RISC has 16 general-purpose registers.
 *   **Compute branch target:** For branch instructions (unconditional jump, call, return), the new PC address (`PC + offset`) is calculated using an offset value provided in the instruction.
 *   **Compute immediate value:** If an operand is an immediate value (16-bit with 2-bit modifiers), it needs to be converted to a 32-bit value. Modifiers specify sign extension (default), zero extension for unsigned (`u` modifier), or placing the 16-bit value in the higher two bytes with lower bytes zeroed (`h` modifier).
